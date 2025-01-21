@@ -2,6 +2,8 @@
 import HostingInfo from './components/HostingInfo.vue'
 import BookRanking from './components/BookRanking.vue'
 import { useI18n } from 'vue-i18n'
+import VisitsInfo from './components/VisitsInfo.vue';
+
 const { t, locale } = useI18n({
   useScope: 'global',
   messages: {
@@ -40,7 +42,10 @@ const { t, locale } = useI18n({
         <option value="kr">🇰🇷 한국어</option>
       </select>
     </div>
-
+    <div class="section">
+      <VisitsInfo />
+    </div>
+    <hr />
     <div class="section">
       <h2>{{ t('app.book_reviews_title') }}</h2>
       <BookRanking />

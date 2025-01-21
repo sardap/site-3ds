@@ -28,14 +28,20 @@ pub struct ClicksResponse {
 }
 
 #[derive(Serialize)]
+pub struct VisitsResponse {
+    pub visits: u64,
+}
+
+
+#[derive(Serialize)]
 pub struct ReviewRatingsResponse {
-    pub review_ratings: HashMap<u8, i128>,
+    pub review_ratings: HashMap<u8, i64>,
 }
 
 #[derive(Serialize)]
 pub struct ReviewRatingResponse {
     pub id: u8,
-    pub rating: i128,
+    pub rating: i64,
 }
 
 #[derive(Deserialize)]
@@ -95,6 +101,25 @@ pub fn route<'a>(request: &Request, db: &mut Database) -> Option<Response<'a>> {
                 response
             }
         };
+        return Some(response);
+    }
+
+    if request.method == "GET" && request.path == "/api/visits" {
+        let mut response = Response::new();
+        response.content_type = content_types::JSON;
+        response.body = ApiResponse::new(VisitsResponse {
+            visits: db.get_visits(),
+        });
+        return Some(response);
+    }
+
+    if request.method == "POST" && request.path == "/api/visits" {
+        let mut response = Response::new();
+        response.content_type = content_types::JSON;
+        db.increment_visits();
+        response.body = ApiResponse::new(VisitsResponse {
+            visits: db.get_visits(),
+        });
         return Some(response);
     }
 

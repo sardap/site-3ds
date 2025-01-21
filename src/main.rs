@@ -13,12 +13,9 @@ fn main() {
     let gfx = Gfx::new().unwrap();
     let mut hid = Hid::new().unwrap();
     let apt = Apt::new().unwrap();
-
-    let mut db = DatabaseHolder::new();
-
-    // Owning a living handle to the `Soc` service is required to use network functionalities.
     let soc = Soc::new().unwrap();
 
+    let mut db = DatabaseHolder::new();
     let mut handler = Handler::new();
 
     {
