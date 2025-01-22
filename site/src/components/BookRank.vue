@@ -2,6 +2,7 @@
 import { useRatingsStore } from '@/stores/ratings'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+
 const { t, d } = useI18n({
   messages: {
     en: {
@@ -10,12 +11,12 @@ const { t, d } = useI18n({
       completed: 'Read on: {0}',
       isbn: 'ISBN: {0}',
       rating: 'Rating: {0}',
-      review: 'Book is good',
       link_copied: 'Link copied',
       copy_link: 'Copy Link',
       user_rating: 'User Rating: {0}',
       user_rating_up: 'Good',
       user_rating_down: 'Bad',
+      img_alt: 'Book cover for {0}',
     },
     kr: {
       author: '저자: {0}',
@@ -23,12 +24,12 @@ const { t, d } = useI18n({
       completed: '완독일: {0}',
       isbn: 'ISBN: {0}',
       rating: '평점: {0}',
-      review: '책이 좋아요',
       link_copied: '링크 복사됨',
       copy_link: '링크 복사',
       user_rating: '사용자 평점: {0}',
       user_rating_up: '좋아요',
       user_rating_down: '싫어요',
+      img_alt: '{0}의 책 표지',
     },
   },
 })
@@ -42,9 +43,10 @@ export interface BookRankProps {
   completed_date: Date
   rating: string
   isbn: string
+  review: string
 }
 
-const ratings = useRatingsStore();
+const ratings = useRatingsStore()
 const props = defineProps<BookRankProps>()
 
 const loading = ref(false)
@@ -78,6 +80,15 @@ function copyLink() {
 }
 
 const linkCopied = ref(false)
+
+function onImageLoad() {
+  const placeholder = document.getElementById('book_placeholder_' + props.id)
+  const image = document.getElementById('book_image_' + props.id)
+  if (placeholder && image) {
+    placeholder.style.display = 'none'
+    image.style.display = ''
+  }
+}
 </script>
 
 <template>
@@ -85,7 +96,8 @@ const linkCopied = ref(false)
     <hr />
     <h3 class="mobile-title title">{{ title }}</h3>
     <div class="number child">
-      <img :src="picture" />
+      <img :id="'book_placeholder_' + id" src="../assets/book_placeholder.webp" />
+      <img :id="'book_image_' + id" style="display: none;" :src="picture" @load="onImageLoad" />
     </div>
     <div class="child info">
       <div class="book">
@@ -98,13 +110,17 @@ const linkCopied = ref(false)
       </div>
       <br />
       <div class="review">
-        <p class="body">{{ t('review') }}</p>
+        <p class="body">{{ review }}</p>
       </div>
       <br />
       <div>
-        <p :key="ratings.getRating(id)" >{{ t('user_rating', [ratings.getRating(id)]) }}</p>
-        <button class="user-rating good" @click="changeRating(true)" :disabled="loading">{{ t('user_rating_up') }}</button>
-        <button class="user-rating bad" @click="changeRating(false)" :disabled="loading">{{ t('user_rating_down')}}</button>
+        <p :key="ratings.getRating(id)">{{ t('user_rating', [ratings.getRating(id)]) }}</p>
+        <button class="user-rating good" @click="changeRating(true)" :disabled="loading">
+          {{ t('user_rating_up') }}
+        </button>
+        <button class="user-rating bad" @click="changeRating(false)" :disabled="loading">
+          {{ t('user_rating_down') }}
+        </button>
       </div>
       <button @click="copyLink()" :disabled="linkCopied">
         {{ linkCopied ? t('link_copied') : t('copy_link') }}
@@ -115,7 +131,7 @@ const linkCopied = ref(false)
 
 <style scoped>
 .review .body {
-  font-size: 1.3rem;
+  font-size: 1rem;
 }
 
 .rank-row .number {

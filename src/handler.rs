@@ -1,6 +1,7 @@
 use chrono::prelude::*;
 use std::net::{Shutdown, TcpListener};
 use std::time::Duration;
+use core::net::SocketAddr;
 
 use crate::api;
 use crate::database::Database;
@@ -21,9 +22,9 @@ impl Handler {
 
     pub fn step(&mut self, db: &mut Database) {
         match self.server.accept() {
-            Ok((mut stream, _socket_addr)) => {
+            Ok((mut stream, socket_addr)) => {
                 let (request, response) = if let Some(request) = Request::from(&stream) {
-                    let response = self.route(&request, db);
+                    let response = self.route(&request, db,&socket_addr);
                     (request, response)
                 } else {
                     (bad_request(), INTERNAL_SERVER_ERROR)
@@ -56,9 +57,9 @@ impl Handler {
         }
     }
 
-    fn route<'a>(&self, request: &Request, db: &mut Database) -> Response<'a> {
+    fn route<'a>(&self, request: &Request, db: &mut Database, socket_address: &SocketAddr) -> Response<'a> {
         if request.path.starts_with("/api") {
-            if let Some(value) = api::route(request, db) {
+            if let Some(value) = api::route(request, db, socket_address) {
                 return value;
             }
         }

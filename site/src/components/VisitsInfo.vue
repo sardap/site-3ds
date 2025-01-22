@@ -23,7 +23,7 @@ onMounted(async () => {
   visits.value = body.data.visits + 1
   loading.value = false
 
-  await new Promise((r) => setTimeout(r, 5000))
+  await new Promise((r) => setTimeout(r, 10000))
   // Update the visits count
   await fetch('/api/visits', {
     method: 'POST',

@@ -210,4 +210,16 @@ impl Request {
             headers,
         })
     }
+
+    pub fn get_header(&self, header: &str) -> Option<String> {
+        for h in &self.headers {
+            let mut splitter = h.splitn(2, ": ");
+            if let (Some(first), Some(second)) = (splitter.next(), splitter.next()) {
+                if first == header {
+                    return Some(second.to_string());
+                }
+            }
+        }
+        None
+    }
 }

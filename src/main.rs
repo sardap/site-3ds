@@ -1,3 +1,4 @@
+#![feature(duration_constructors)]
 mod api;
 mod database;
 mod handler;

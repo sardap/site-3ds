@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::{Hash, Hasher}, net::IpAddr, str::FromStr};
+
+use core::net::SocketAddr;
 
 use crate::{
     database::Database,
@@ -50,7 +52,7 @@ pub struct PostReviewRatingRequest {
     pub positive: bool,
 }
 
-pub fn route<'a>(request: &Request, db: &mut Database) -> Option<Response<'a>> {
+pub fn route<'a>(request: &Request, db: &mut Database, socket_addr: &SocketAddr) -> Option<Response<'a>> {
     if request.method == "GET" && request.path == "/api/clicks" {
         let mut response = Response::new();
         response.content_type = content_types::JSON;
@@ -114,9 +116,34 @@ pub fn route<'a>(request: &Request, db: &mut Database) -> Option<Response<'a>> {
     }
 
     if request.method == "POST" && request.path == "/api/visits" {
+        let ip = match request.get_header("X-Forwarded-For") {
+            Some(value) => {
+                println!("X-Forwarded-For: {value}");
+                match IpAddr::from_str(&value) {
+                    Ok(ip_address) => ip_address,
+                    Err(e) => {
+                        println!("Error parsing IP address: {e}");
+                        socket_addr.ip()
+                    }
+                }
+            },
+            None => socket_addr.ip(),
+        };
+
+        let ip = match ip {
+            IpAddr::V4(ip) => u32::from(ip),
+            IpAddr::V6(ip) => {
+                // Fuck it hash the ipv6 and hope for the best
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                ip.hash(&mut hasher);
+                hasher.finish() as u32
+            },
+        };
+        db.add_visit(ip);
+
+
         let mut response = Response::new();
         response.content_type = content_types::JSON;
-        db.increment_visits();
         response.body = ApiResponse::new(VisitsResponse {
             visits: db.get_visits(),
         });
