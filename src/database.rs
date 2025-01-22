@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::BufReader, time::{Duration, SystemTime}};
+use std::{collections::HashMap, fs::File, io::BufReader, net::IpAddr, time::{Duration, SystemTime}};
 
 use serde::{Deserialize, Serialize};
 
@@ -62,8 +62,13 @@ impl Database {
         self.visits
     }
 
-    pub fn add_visit(&mut self, ip: u32) {
-        if self.visit_history.contains_key(&ip) {
+    pub fn add_visit(&mut self, ip: &IpAddr) {
+        let hash = match ip {
+            IpAddr::V4(ipv4_addr) => fletcher32(&ipv4_addr.octets()),
+            IpAddr::V6(ipv6_addr) => fletcher32(&ipv6_addr.octets()),
+        };
+
+        if self.visit_history.contains_key(&hash) {
             return;
         }
 
@@ -71,7 +76,7 @@ impl Database {
             self.force_clear_oldest_visit();
         }
 
-        self.visit_history.insert(ip, SystemTime::now());
+        self.visit_history.insert(hash, SystemTime::now());
         self.visits += 1;
         self.set_dirty();
     }
@@ -151,4 +156,32 @@ impl DatabaseHolder {
             }
         }
     }
+}
+
+
+// Stolen from wikipedia
+fn fletcher32(data: &[u8]) -> u32 {
+    let mut c0: u32 = 0;
+    let mut c1: u32 = 0;
+    let mut len = (data.len() + 1) & !1; // Round up len to words
+
+    /* We similarly solve for n > 0 and n * (n+1) / 2 * (2^16-1) < (2^32-1) here. */
+	/* On modern computers, using a 64-bit c0/c1 could allow a group size of 23726746. */
+    let mut i = 0;
+    while len > 0 {
+        let mut blocklen = len;
+        if blocklen > 360 * 2 {
+            blocklen = 360 * 2;
+        }
+        len -= blocklen;
+        while blocklen > 0 {
+            c0 = c0.wrapping_add(data[i] as u32);
+            c1 = c1.wrapping_add(c0);
+            i += 1;
+            blocklen -= 2;
+        }
+        c0 %= 65535;
+        c1 %= 65535;
+    }
+    (c1 << 16) | c0
 }

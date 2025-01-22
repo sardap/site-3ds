@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::{Hash, Hasher}, net::IpAddr, str::FromStr};
+use std::{collections::HashMap, net::IpAddr, str::FromStr};
 
 use core::net::SocketAddr;
 
@@ -130,16 +130,7 @@ pub fn route<'a>(request: &Request, db: &mut Database, socket_addr: &SocketAddr)
             None => socket_addr.ip(),
         };
 
-        let ip = match ip {
-            IpAddr::V4(ip) => u32::from(ip),
-            IpAddr::V6(ip) => {
-                // Fuck it hash the ipv6 and hope for the best
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                ip.hash(&mut hasher);
-                hasher.finish() as u32
-            },
-        };
-        db.add_visit(ip);
+        db.add_visit(&ip);
 
 
         let mut response = Response::new();
