@@ -2,7 +2,7 @@
 import HostingInfo from './components/HostingInfo.vue'
 import BookRanking from './components/BookRanking.vue'
 import { useI18n } from 'vue-i18n'
-import VisitsInfo from './components/VisitsInfo.vue';
+import VisitsInfo from './components/VisitsInfo.vue'
 
 const { t, locale } = useI18n({
   useScope: 'global',
@@ -25,7 +25,6 @@ const { t, locale } = useI18n({
     },
   },
 })
-
 </script>
 
 <template>

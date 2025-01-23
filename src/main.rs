@@ -16,7 +16,6 @@ fn main() {
     let apt = Apt::new().unwrap();
     let soc = Soc::new().unwrap();
 
-    let mut db = DatabaseHolder::new();
     let mut handler = Handler::new();
 
     {
@@ -24,6 +23,8 @@ fn main() {
         println!("Serving at {}/\n", soc.host_address());
         println!("Press Start to exit");
     }
+
+    let mut db = DatabaseHolder::new();
 
     let _top_console = Console::new(gfx.top_screen.borrow_mut());
     while apt.main_loop() {

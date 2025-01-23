@@ -97,7 +97,7 @@ function onImageLoad() {
     <h3 class="mobile-title title">{{ title }}</h3>
     <div class="number child">
       <img :id="'book_placeholder_' + id" src="../assets/book_placeholder.webp" />
-      <img :id="'book_image_' + id" style="display: none;" :src="picture" @load="onImageLoad" />
+      <img :id="'book_image_' + id" style="display: none" :src="picture" @load="onImageLoad" />
     </div>
     <div class="child info">
       <div class="book">

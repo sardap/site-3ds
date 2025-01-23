@@ -34,7 +34,6 @@ pub struct VisitsResponse {
     pub visits: u64,
 }
 
-
 #[derive(Serialize)]
 pub struct ReviewRatingsResponse {
     pub review_ratings: HashMap<u8, i64>,
@@ -52,26 +51,11 @@ pub struct PostReviewRatingRequest {
     pub positive: bool,
 }
 
-pub fn route<'a>(request: &Request, db: &mut Database, socket_addr: &SocketAddr) -> Option<Response<'a>> {
-    if request.method == "GET" && request.path == "/api/clicks" {
-        let mut response = Response::new();
-        response.content_type = content_types::JSON;
-        response.body = ApiResponse::new(ClicksResponse {
-            clicks: db.clicks(),
-        });
-        return Some(response);
-    }
-
-    if request.method == "POST" && request.path == "/api/clicks" {
-        let mut response = Response::new();
-        response.content_type = content_types::JSON;
-        db.set_clicks(db.clicks() + 1);
-        response.body = ApiResponse::new(ClicksResponse {
-            clicks: db.clicks(),
-        });
-        return Some(response);
-    }
-
+pub fn route<'a>(
+    request: &Request,
+    db: &mut Database,
+    socket_addr: &SocketAddr,
+) -> Option<Response<'a>> {
     if request.method == "GET" && request.path == "/api/review_ratings" {
         let mut response = Response::new();
         response.content_type = content_types::JSON;
@@ -107,15 +91,6 @@ pub fn route<'a>(request: &Request, db: &mut Database, socket_addr: &SocketAddr)
     }
 
     if request.method == "GET" && request.path == "/api/visits" {
-        let mut response = Response::new();
-        response.content_type = content_types::JSON;
-        response.body = ApiResponse::new(VisitsResponse {
-            visits: db.get_visits(),
-        });
-        return Some(response);
-    }
-
-    if request.method == "POST" && request.path == "/api/visits" {
         let ip = match request.get_header("X-Forwarded-For") {
             Some(value) => {
                 println!("X-Forwarded-For: {value}");
@@ -126,12 +101,11 @@ pub fn route<'a>(request: &Request, db: &mut Database, socket_addr: &SocketAddr)
                         socket_addr.ip()
                     }
                 }
-            },
+            }
             None => socket_addr.ip(),
         };
 
         db.add_visit(&ip);
-
 
         let mut response = Response::new();
         response.content_type = content_types::JSON;

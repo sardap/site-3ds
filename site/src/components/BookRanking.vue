@@ -30,19 +30,22 @@ const { t, locale } = useI18n({
         title: 'John Curtin: A Life',
         author: 'David Day',
         rating: '5 Stars',
-        review: 'A great window into life in Victoria during the start of federation. Also into the anti-conscription campaign, The strange Victoria Socialist Party and it\'s struggle to influence the Labor party. The rough years of the Scullin government. How Labor was able to wrestle control from the UAP and Menzies during WW2. Then political pressures from the war in the Pacific. While giving an insight into Curtin and his struggles with "Rotten moods" and persistent drinking.',
+        review:
+          'A great window into life in Victoria during the start of federation. Also into the anti-conscription campaign, The strange Victoria Socialist Party and it\'s struggle to influence the Labor party. The rough years of the Scullin government. How Labor was able to wrestle control from the UAP and Menzies during WW2. Then political pressures from the war in the Pacific. While giving an insight into Curtin and his struggles with "Rotten moods" and persistent drinking.',
       },
       book_5: {
         title: 'The Big Fella: Jack Lang and the Australian Labor Party, 1891–1949',
         author: 'Bede Nairn',
         rating: '5 Stars',
-        review: 'A great read about how a single man can capture an entire political party completely but only in a single state. How that on man was then able to  cause schism inside the largest state. Causing failures for Labor first at the Federal level, then at the state level when he refused to let go.',
+        review:
+          'A great read about how a single man can capture an entire political party completely but only in a single state. How that on man was then able to  cause schism inside the largest state. Causing failures for Labor first at the Federal level, then at the state level when he refused to let go.',
       },
       book_6: {
         title: 'Chifley : A Life',
         author: 'David Day',
         rating: '5 Stars',
-        review: 'The same way the curtain book gave great insight into life in Victoria during the start of federation. This gives great insight into life in Bathurst until the mid 20th century. It gives less perspective on Chiefly feelings and has more speculation than I would like because he burned all his letters. But is still historically sound for the events surrounding him. Covers greatly his bitter struggle with Jack Lang over the control of the NSW Labor party. His career as a train driver, Care fo council politics and of course his place in the Curtin government then his rise to the top job.',
+        review:
+          'The same way the curtain book gave great insight into life in Victoria during the start of federation. This gives great insight into life in Bathurst until the mid 20th century. It gives less perspective on Chiefly feelings and has more speculation than I would like because he burned all his letters. But is still historically sound for the events surrounding him. Covers greatly his bitter struggle with Jack Lang over the control of the NSW Labor party. His career as a train driver, Care fo council politics and of course his place in the Curtin government then his rise to the top job.',
       },
     },
     kr: {

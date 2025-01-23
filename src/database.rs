@@ -1,41 +1,41 @@
-use std::{collections::HashMap, fs::File, io::BufReader, net::IpAddr, time::{Duration, SystemTime}};
+use std::{collections::HashMap, fs::File, io::BufReader, net::IpAddr, time::SystemTime, u32};
 
 use serde::{Deserialize, Serialize};
 
 const DATABASE_SAVE_INTERVAL_SECONDS: u64 = 60;
-const VISIT_EXPIRE: u64 = Duration::from_hours(24).as_secs() as u64;
-const VISIT_HISTORY_MAX_SIZE: usize = 1000;
+const VISIT_HISTORY_MAX_SIZE: usize = 5000;
+
+#[derive(Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq)]
+pub enum StoredIp {
+    V4(u32),
+    V6(u128),
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub struct LeastVisitor {
+    ip: StoredIp,
+    count: u32,
+}
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Database {
     #[serde(default)]
-    clicks: u64,
-    #[serde(default)]
     review_ratings: HashMap<u8, i64>,
     #[serde(default)]
-    visit_history: HashMap<u32, SystemTime>,
+    visit_history: HashMap<StoredIp, u32>,
+    #[serde(default)]
+    least_visitor: Option<LeastVisitor>,
     #[serde(default)]
     visits: u64,
     #[serde(skip)]
     dirty_start: Option<SystemTime>,
-    #[serde(skip)]
-    next_expire: Option<SystemTime>,
 }
 
 impl Database {
-    pub fn clicks(&self) -> u64 {
-        self.clicks
-    }
-
     fn set_dirty(&mut self) {
         if self.dirty_start.is_none() {
             self.dirty_start = Some(SystemTime::now());
         }
-    }
-
-    pub fn set_clicks(&mut self, clicks: u64) {
-        self.clicks = clicks;
-        self.set_dirty();
     }
 
     pub fn get_review_ratings(&self) -> HashMap<u8, i64> {
@@ -63,59 +63,59 @@ impl Database {
     }
 
     pub fn add_visit(&mut self, ip: &IpAddr) {
-        let hash = match ip {
-            IpAddr::V4(ipv4_addr) => fletcher32(&ipv4_addr.octets()),
-            IpAddr::V6(ipv6_addr) => fletcher32(&ipv6_addr.octets()),
+        let ip = match ip {
+            // Im not sure if it makes sense to hash the ipv4 address It probably is better to not mix hashed and not hashed data.
+            IpAddr::V4(ipv4_addr) => StoredIp::V4(ipv4_addr.clone().into()),
+            IpAddr::V6(ipv6_addr) => StoredIp::V6(ipv6_addr.clone().into()),
         };
 
-        if self.visit_history.contains_key(&hash) {
-            return;
+        let user_visits = match self.visit_history.get_mut(&ip) {
+            Some(entry) => {
+                *entry = (*entry).checked_add(1).unwrap_or(u32::MAX);
+                *entry
+            }
+            None => {
+                if self.visit_history.len() > VISIT_HISTORY_MAX_SIZE {
+                    self.clear_least_common_visit();
+                }
+                self.visit_history.insert(ip, 1);
+                self.visits += 1;
+                1
+            }
+        };
+
+        match &mut self.least_visitor {
+            Some(least_visitor) => {
+                if user_visits < least_visitor.count {
+                    least_visitor.ip = ip;
+                    least_visitor.count = user_visits;
+                }
+            }
+            None => {
+                self.least_visitor = Some(LeastVisitor {
+                    ip,
+                    count: user_visits,
+                });
+            }
         }
 
-        if self.visit_history.len() > VISIT_HISTORY_MAX_SIZE {
-            self.force_clear_oldest_visit();
-        }
-
-        self.visit_history.insert(hash, SystemTime::now());
-        self.visits += 1;
         self.set_dirty();
     }
 
-    fn force_clear_oldest_visit(&mut self) {
-        let mut oldest: Option<(&u32, &SystemTime)> = None;
-        for (ip, time) in &self.visit_history {
-            if oldest.is_none() || *time < *oldest.unwrap().1 {
-                oldest = Some((ip, time));
+    fn clear_least_common_visit(&mut self) {
+        let mut min = u32::MAX;
+        let mut min_ip = None;
+        for (ip, count) in &self.visit_history {
+            if *count < min || min_ip.is_none() {
+                min = *count;
+                min_ip = Some(ip);
             }
         }
-        
-        if let Some((ip, _)) = oldest {
+        if let Some(ip) = min_ip {
             let ip = *ip;
             self.visit_history.remove(&ip);
         }
         self.set_dirty();
-    }
-
-    fn clear_old_visits(&mut self) {
-        let now = SystemTime::now();
-        let mut next_expire_time = SystemTime::now().checked_add(Duration::from_hours(1000)).unwrap();
-        let mut to_purge = vec![];
-        for (ip, time) in self.visit_history.iter() {
-            if now.duration_since(*time).unwrap().as_secs() > VISIT_EXPIRE {
-                to_purge.push(*ip);
-            } else {
-                if next_expire_time > *time {
-                    next_expire_time = *time;
-                }
-            }
-        }
-        for ip in &to_purge {
-            self.visit_history.remove(ip);
-        }
-        self.next_expire = Some(next_expire_time);
-        if to_purge.len() > 0 {
-            self.set_dirty();
-        }
     }
 }
 
@@ -128,10 +128,12 @@ impl DatabaseHolder {
         if let Ok(file) = std::fs::File::open("database.bin") {
             let reader = std::io::BufReader::new(file);
             if let Ok(db) = bincode::deserialize_from::<BufReader<File>, Database>(reader) {
+                println!("Loading existing database");
                 return DatabaseHolder { db };
             };
         }
 
+        println!("Creating new database");
         DatabaseHolder {
             db: Database::default(),
         }
@@ -139,9 +141,6 @@ impl DatabaseHolder {
 
     pub fn step(&mut self) {
         if let Some(dirty) = self.db.dirty_start {
-            if self.db.next_expire.is_none() || self.db.next_expire.unwrap() < SystemTime::now() {
-                self.db.clear_old_visits();
-            }
             if dirty.elapsed().unwrap().as_secs() > DATABASE_SAVE_INTERVAL_SECONDS {
                 let db_save = self.db.clone();
                 std::thread::Builder::new()
@@ -156,32 +155,4 @@ impl DatabaseHolder {
             }
         }
     }
-}
-
-
-// Stolen from wikipedia
-fn fletcher32(data: &[u8]) -> u32 {
-    let mut c0: u32 = 0;
-    let mut c1: u32 = 0;
-    let mut len = (data.len() + 1) & !1; // Round up len to words
-
-    /* We similarly solve for n > 0 and n * (n+1) / 2 * (2^16-1) < (2^32-1) here. */
-	/* On modern computers, using a 64-bit c0/c1 could allow a group size of 23726746. */
-    let mut i = 0;
-    while len > 0 {
-        let mut blocklen = len;
-        if blocklen > 360 * 2 {
-            blocklen = 360 * 2;
-        }
-        len -= blocklen;
-        while blocklen > 0 {
-            c0 = c0.wrapping_add(data[i] as u32);
-            c1 = c1.wrapping_add(c0);
-            i += 1;
-            blocklen -= 2;
-        }
-        c0 %= 65535;
-        c1 %= 65535;
-    }
-    (c1 << 16) | c0
 }
