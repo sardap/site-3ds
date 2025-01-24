@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 const DATABASE_SAVE_INTERVAL_SECONDS: u64 = 60;
 const VISIT_HISTORY_MAX_SIZE: usize = 5000;
+const DATABASE_FILENAME: &str = "site_3ds_database.bin";
 
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum StoredIp {
@@ -17,18 +18,26 @@ pub struct LeastVisitor {
     count: u32,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Database {
-    #[serde(default)]
     review_ratings: HashMap<u8, i64>,
-    #[serde(default)]
     visit_history: HashMap<StoredIp, u32>,
-    #[serde(default)]
     least_visitor: Option<LeastVisitor>,
-    #[serde(default)]
     visits: u64,
     #[serde(skip)]
     dirty_start: Option<SystemTime>,
+}
+
+impl Default for Database {
+    fn default() -> Self {
+        Database {
+            review_ratings: HashMap::with_capacity(u8::MAX as usize),
+            visit_history: HashMap::with_capacity(VISIT_HISTORY_MAX_SIZE),
+            least_visitor: None,
+            visits: 0,
+            dirty_start: None,
+        }
+    }
 }
 
 impl Database {
@@ -75,8 +84,11 @@ impl Database {
                 *entry
             }
             None => {
-                if self.visit_history.len() > VISIT_HISTORY_MAX_SIZE {
-                    self.clear_least_common_visit();
+                if self.visit_history.len() + 1 > VISIT_HISTORY_MAX_SIZE
+                    && self.least_visitor.is_some()
+                {
+                    self.visit_history.remove(&self.least_visitor.unwrap().ip);
+                    self.least_visitor = None;
                 }
                 self.visit_history.insert(ip, 1);
                 self.visits += 1;
@@ -92,29 +104,29 @@ impl Database {
                 }
             }
             None => {
-                self.least_visitor = Some(LeastVisitor {
-                    ip,
-                    count: user_visits,
-                });
+                let mut iter = self.visit_history.iter();
+                for i in 0..10 {
+                    if let Some((ip, count)) = iter.next() {
+                        if i == 0 {
+                            self.least_visitor = Some(LeastVisitor {
+                                ip: *ip,
+                                count: *count,
+                            });
+                        } else {
+                            if *count < self.least_visitor.unwrap().count {
+                                self.least_visitor = Some(LeastVisitor {
+                                    ip: *ip,
+                                    count: *count,
+                                });
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
             }
         }
 
-        self.set_dirty();
-    }
-
-    fn clear_least_common_visit(&mut self) {
-        let mut min = u32::MAX;
-        let mut min_ip = None;
-        for (ip, count) in &self.visit_history {
-            if *count < min || min_ip.is_none() {
-                min = *count;
-                min_ip = Some(ip);
-            }
-        }
-        if let Some(ip) = min_ip {
-            let ip = *ip;
-            self.visit_history.remove(&ip);
-        }
         self.set_dirty();
     }
 }
@@ -125,7 +137,7 @@ pub struct DatabaseHolder {
 
 impl DatabaseHolder {
     pub fn new() -> DatabaseHolder {
-        if let Ok(file) = std::fs::File::open("database.bin") {
+        if let Ok(file) = std::fs::File::open(DATABASE_FILENAME) {
             let reader = std::io::BufReader::new(file);
             if let Ok(db) = bincode::deserialize_from::<BufReader<File>, Database>(reader) {
                 println!("Loading existing database");
@@ -142,15 +154,12 @@ impl DatabaseHolder {
     pub fn step(&mut self) {
         if let Some(dirty) = self.db.dirty_start {
             if dirty.elapsed().unwrap().as_secs() > DATABASE_SAVE_INTERVAL_SECONDS {
-                let db_save = self.db.clone();
-                std::thread::Builder::new()
-                    .spawn(move || {
-                        let file = std::fs::File::create("database.bin").unwrap();
-                        let writer = std::io::BufWriter::new(file);
-                        bincode::serialize_into(writer, &db_save).unwrap();
-                        println!("Database saved");
-                    })
-                    .unwrap();
+                {
+                    let file = std::fs::File::create(DATABASE_FILENAME).unwrap();
+                    let writer = std::io::BufWriter::new(file);
+                    bincode::serialize_into(writer, &self.db).unwrap();
+                }
+                println!("Database saved");
                 self.db.dirty_start = None;
             }
         }

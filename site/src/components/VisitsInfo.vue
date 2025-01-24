@@ -20,7 +20,7 @@ const visits = ref(0)
 onMounted(async () => {
   const response = await fetch('/api/visits')
   const body = await response.json()
-  visits.value = body.data.visits + 1
+  visits.value = body.data.visits
   loading.value = false
 })
 </script>
