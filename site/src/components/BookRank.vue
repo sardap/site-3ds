@@ -96,8 +96,8 @@ function onImageLoad() {
     <hr />
     <h3 class="mobile-title title">{{ title }}</h3>
     <div class="number child">
-      <img :id="'book_placeholder_' + id" src="../assets/book_placeholder.webp" />
-      <img :id="'book_image_' + id" style="display: none" :src="picture" @load="onImageLoad" />
+      <img :id="'book_placeholder_' + id" class="placeholder" src="../assets/book_placeholder.webp" />
+      <img :id="'book_image_' + id"  class="book-cover" style="display: none" :src="picture" @load="onImageLoad" />
     </div>
     <div class="child info">
       <div class="book">
@@ -206,4 +206,9 @@ hr {
 .bad {
   background-color: #ff000033;
 }
+
+.placeholder {
+  filter: blur(2px);
+}
+
 </style>

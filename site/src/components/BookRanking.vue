@@ -47,6 +47,12 @@ const { t, locale } = useI18n({
         review:
           'The same way the curtain book gave great insight into life in Victoria during the start of federation. This gives great insight into life in Bathurst until the mid 20th century. It gives less perspective on Chiefly feelings and has more speculation than I would like because he burned all his letters. But is still historically sound for the events surrounding him. Covers greatly his bitter struggle with Jack Lang over the control of the NSW Labor party. His career as a train driver, Care fo council politics and of course his place in the Curtin government then his rise to the top job.',
       },
+      book_7: {
+        title: 'John Cain & Vic labor 1917 - 1957',
+        author: 'Kate White',
+        rating: '5 Stars',
+        review: 'A shorter book but covers Victorian state politics in the first half of the 20th century in enough detail to satiate my curiosity. It\'s a wonderful time capsule from the early 80s when Labor in Victoria was at it\'s historical low written at the tail end of liberal domination of Victorian state politics. Gives great insight why european style Minority only government would look like in Australia where forming a majority government was almost impossible due to a thumb on the scale favouring country voters. Covering how the minor country party was able to dominate the state with alternating support from both Labor and the UAP / Liberals. How John Cain was able to stay leader of the party for 20 years and in parliament for an insane 40 years. It does cover the DLP split but not in as much detail as I would like in contrast to the rest of the book.',
+      }
     },
     kr: {
       book_1: {
@@ -67,6 +73,9 @@ const { t, locale } = useI18n({
         rating: '별5개',
       },
       book_6: {
+        rating: '별5개',
+      },
+      book_7: {
         rating: '별5개',
       },
     },
@@ -141,6 +150,18 @@ function get_books(): BookRankProps[] {
       isbn: '9781460706169',
       review: t('book_6.review'),
     },
+    {
+      id: 7,
+      title: t('book_7.title'),
+      author: t('book_7.author'),
+      year: 1982,
+      picture: '/books/HNI_0010.jpg',
+      completed_date: new Date('2025-01-30'),
+      rating: t('book_7.rating'),
+      isbn: '0868060275',
+      review: t('book_7.review'),
+
+    }
   ]
 
   return result
