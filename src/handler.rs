@@ -63,7 +63,11 @@ impl Handler {
         db: &mut Database,
         socket_address: &SocketAddr,
     ) -> Response<'a> {
-        if request.path.starts_with("/api") {
+        if request.method == "GET" && request.path == "/" {
+            return SERVE_REQUESTS[0].create_response(request);
+        }
+
+        if request.path.starts_with("/api/") {
             if let Some(value) = api::route(request, db, socket_address) {
                 return value;
             }
@@ -71,18 +75,8 @@ impl Handler {
 
         for serve_request in SERVE_REQUESTS.iter() {
             if serve_request.method == request.method && serve_request.path == request.path {
-                let mut response = Response::new();
-                response.content_type = serve_request.content_type;
-                response.body = ResponseBody::Lifetime(serve_request.body);
-                return response;
+                return serve_request.create_response(request);
             }
-        }
-
-        if request.method == "GET" && request.path == "/" {
-            let mut response = Response::new();
-            response.content_type = REQUEST_INDEX_HTML.content_type;
-            response.body = ResponseBody::Lifetime(REQUEST_INDEX_HTML.body);
-            return response;
         }
 
         let mut response = Response::new();
@@ -91,6 +85,30 @@ impl Handler {
         response.body =
             ResponseBody::Lifetime("<html><body><h1>404 Not Found</h1></body></html>".as_bytes());
         response
+    }
+}
+
+impl ServeRequest {
+    pub fn create_response<'a>(&self, request: &Request) -> Response<'a> {
+        let mut response = Response::new();
+        response.content_type = self.content_type;
+
+        let accept_encoding = request
+            .get_header("Accept-Encoding")
+            .unwrap_or("".to_string());
+        if self.body_gzip.is_some() && accept_encoding.contains("gzip") {
+            response.headers.push("Content-Encoding: gzip".to_string());
+            response.body = ResponseBody::Lifetime(self.body_gzip.unwrap());
+        } else if self.body_deflate.is_some() && accept_encoding.contains("deflate") {
+            response
+                .headers
+                .push("Content-Encoding: deflate".to_string());
+            response.body = ResponseBody::Lifetime(self.body_deflate.unwrap());
+        } else {
+            response.body = ResponseBody::Lifetime(self.body);
+        }
+
+        return response;
     }
 }
 
