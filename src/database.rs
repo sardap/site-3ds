@@ -129,38 +129,30 @@ impl Database {
 
         self.set_dirty();
     }
-}
 
-pub struct DatabaseHolder {
-    pub db: Database,
-}
-
-impl DatabaseHolder {
-    pub fn new() -> DatabaseHolder {
+    pub fn new() -> Database {
         if let Ok(file) = std::fs::File::open(DATABASE_FILENAME) {
             let reader = std::io::BufReader::new(file);
             if let Ok(db) = bincode::deserialize_from::<BufReader<File>, Database>(reader) {
                 println!("Loading existing database");
-                return DatabaseHolder { db };
+                return db;
             };
         }
 
         println!("Creating new database");
-        DatabaseHolder {
-            db: Database::default(),
-        }
+        Database::default()
     }
 
     pub fn step(&mut self) {
-        if let Some(dirty) = self.db.dirty_start {
+        if let Some(dirty) = self.dirty_start {
             if dirty.elapsed().unwrap().as_secs() > DATABASE_SAVE_INTERVAL_SECONDS {
                 {
                     let file = std::fs::File::create(DATABASE_FILENAME).unwrap();
                     let writer = std::io::BufWriter::new(file);
-                    bincode::serialize_into(writer, &self.db).unwrap();
+                    bincode::serialize_into(writer, &self).unwrap();
                 }
                 println!("Database saved");
-                self.db.dirty_start = None;
+                self.dirty_start = None;
             }
         }
     }

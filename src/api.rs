@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::IpAddr, str::FromStr};
+use std::{collections::HashMap, net::IpAddr, str::FromStr, sync::{Arc, Mutex}};
 
 use core::net::SocketAddr;
 
@@ -53,10 +53,11 @@ pub struct PostReviewRatingRequest {
 
 pub fn route<'a>(
     request: &Request,
-    db: &mut Database,
+    db: Arc<Mutex<Database>>,
     socket_addr: &SocketAddr,
 ) -> Option<Response<'a>> {
     if request.method == "GET" && request.path == "/api/review_ratings" {
+        let db = db.lock().unwrap();
         let mut response = Response::new();
         response.content_type = content_types::JSON;
         response.body = ApiResponse::new(ReviewRatingsResponse {
@@ -66,6 +67,7 @@ pub fn route<'a>(
     }
 
     if request.method == "POST" && request.path == "/api/review_ratings" {
+        let mut db = db.lock().unwrap();
         let response = match serde_json::from_str::<PostReviewRatingRequest>(&request.body) {
             Ok(request_body) => {
                 let mut response = Response::new();
@@ -91,6 +93,7 @@ pub fn route<'a>(
     }
 
     if request.method == "GET" && request.path == "/api/visits" {
+        let mut db = db.lock().unwrap();
         let ip = match request.get_header("X-Forwarded-For") {
             Some(value) => {
                 println!("X-Forwarded-For: {value}");

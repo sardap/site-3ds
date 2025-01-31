@@ -16,6 +16,7 @@ const { t } = useI18n({
       running here with a wireguard VPN setup with a connection to the nginx server hosted in
       singapore. This site is built in vue and vite with a plugin so it creates a single html file.`,
       specs_title: 'What are the specs of the beast running this?',
+      can_even_play_videos: 'It can even play videos',
     },
     kr: {
       intro_line: '위 사진에 나와 있는 2DS에서 이 사이트가 호스팅되고 있습니다.',
@@ -31,6 +32,7 @@ const { t } = useI18n({
   wireguard VPN을 설정하고 싱가포르에 호스팅된 nginx 서버에 연결되어 있습니다.
   이 사이트는 vue와 vite로 제작되었으며 단일 HTML 파일을 생성하는 플러그인을 사용합니다.`,
       specs_title: '이걸 실행하는 괴물의 사양은 무엇인가요?',
+      can_even_play_videos: '비디오도 재생할 수 있습니다.',
     },
   },
 })
@@ -65,6 +67,10 @@ const { t } = useI18n({
         </tr>
       </tbody>
     </table>
+    <h3>{{ t('can_even_play_videos') }}</h3>
+    <video controls>
+      <source src="/video.webm" type="video/webm" />
+    </video>
   </div>
 </template>
 

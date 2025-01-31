@@ -3,7 +3,7 @@ use std::{
     net::TcpStream,
 };
 
-fn safe_send(stream: &mut TcpStream, data: &[u8]) {
+fn safe_send(stream: &mut TcpStream, data: &[u8]) -> Result<(), ()> {
     let mut offset = 0;
     loop {
         let to_send = &data[offset..data.len()];
@@ -14,21 +14,30 @@ fn safe_send(stream: &mut TcpStream, data: &[u8]) {
                     continue;
                 } else {
                     println!("Error writing to stream: {e}");
-                    break;
+                    return Err(());
                 }
             }
         };
         offset += write;
         if offset >= data.len() {
-            break;
+            return Ok(());
         }
     }
 }
 
 #[derive(Clone, Debug)]
+pub struct SliceBody<'a> {
+    pub data: &'a [u8],
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Clone, Debug)]
 pub enum ResponseBody<'a> {
     Lifetime(&'a [u8]),
+    Slice(SliceBody<'a>),
     Owned(Vec<u8>),
+    Empty,
 }
 
 impl ResponseBody<'_> {
@@ -36,13 +45,17 @@ impl ResponseBody<'_> {
         match self {
             ResponseBody::Lifetime(data) => data.len(),
             ResponseBody::Owned(data) => data.len(),
+            ResponseBody::Slice(slice) => slice.end - slice.start,
+            ResponseBody::Empty => 0,
         }
     }
 
-    pub fn as_slice(&self) -> &[u8] {
+    pub fn chunks<'a>(&self, chunk_size: usize) -> std::slice::Chunks<'_, u8> {
         match self {
-            ResponseBody::Lifetime(data) => data,
-            ResponseBody::Owned(data) => data.as_slice(),
+            ResponseBody::Lifetime(data) => data.chunks(chunk_size),
+            ResponseBody::Owned(data) => data.chunks(chunk_size),
+            ResponseBody::Slice(slice) => slice.data[slice.start..slice.end].chunks(chunk_size),
+            ResponseBody::Empty => EMPTY_BODY.chunks(chunk_size),
         }
     }
 }
@@ -54,6 +67,7 @@ pub struct Response<'a> {
     pub content_type: &'static str,
     pub headers: Vec<String>,
     pub body: ResponseBody<'a>,
+    pub content_length_override: Option<usize>,
 }
 
 impl<'a> Response<'a> {
@@ -64,38 +78,44 @@ impl<'a> Response<'a> {
             content_type: content_types::PLAIN,
             headers: vec![],
             body: ResponseBody::Lifetime(EMPTY_BODY),
+            content_length_override: None,
         };
     }
 
     pub fn send(&self, stream: &mut TcpStream) {
-        safe_send(
-            stream,
-            format!(
+        {
+            let mut send_body = String::with_capacity(256);
+            send_body.push_str(&format!(
                 "HTTP/{} {} {}\r\n",
                 self.version,
                 self.status,
                 status_to_message(self.status)
-            )
-            .as_bytes(),
-        );
-
-        safe_send(
-            stream,
-            format!("Content-Type: {}\r\n", self.content_type).as_bytes(),
-        );
-        safe_send(stream, "Server: site-3ds\r\n".as_bytes());
-        safe_send(stream, "Connection: close\r\n".as_bytes());
-        for header in &self.headers {
-            safe_send(stream, format!("{}\r\n", header).as_bytes());
+            ));
+            send_body.push_str("Server: site-3ds\r\n");
+            send_body.push_str(&format!("Content-Type: {}\r\n", self.content_type));
+            send_body.push_str(&format!(
+                "Content-Length: {}\r\n",
+                if let Some(len) = self.content_length_override {
+                    len
+                } else {
+                    self.body.len()
+                }
+            ));
+            // send_body.push_str("Connection: close\r\n");
+            for header in &self.headers {
+                send_body.push_str(&format!("{}\r\n", header));
+            }
+            send_body.push_str("\r\n");
+            if safe_send(stream, send_body.as_bytes()).is_err() {
+                return;
+            }
         }
-        safe_send(
-            stream,
-            format!("Connection-Length: {}\r\n", self.body.len()).as_bytes(),
-        );
 
-        safe_send(stream, "\r\n".as_bytes());
-
-        safe_send(stream, self.body.as_slice());
+        for chunk in self.body.chunks(2000) {
+            if safe_send(stream, chunk).is_err() {
+                return;
+            }
+        }
     }
 }
 
@@ -105,12 +125,15 @@ fn status_to_message(status: u16) -> String {
         201 => "Created".to_owned(),
         202 => "Accepted".to_owned(),
         204 => "No Content".to_owned(),
+        205 => "Reset Content".to_owned(),
+        206 => "Partial Content".to_owned(),
         400 => "Bad Request".to_owned(),
         401 => "Unauthorized".to_owned(),
         403 => "Forbidden".to_owned(),
         404 => "Not Found".to_owned(),
         405 => "Method Not Allowed".to_owned(),
         500 => "Internal Server Error".to_owned(),
+        503 => "Service Unavailable".to_owned(),
         _ => "Internal Server Error".to_owned(),
     }
 }
