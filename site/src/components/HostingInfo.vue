@@ -75,6 +75,10 @@ const { t } = useI18n({
 </template>
 
 <style scoped>
+video {
+  max-width: 90%;
+}
+
 h3 {
   margin-top: 20px;
 }
