@@ -64,7 +64,7 @@ impl Worker {
                 response.status
             );
 
-            response.send(&mut job.tcp_stream);
+            response.send(&mut job.tcp_stream, self.keep_running.clone());
             // Shutdown the stream (depending on the web browser used to view the page, this might cause some issues).
             match job.tcp_stream.shutdown(Shutdown::Both) {
                 Ok(_) => {}
@@ -137,7 +137,7 @@ impl Handler {
                     Some(request) => request,
                     None => {
                         let response = &INTERNAL_SERVER_ERROR;
-                        server_error(stream, &response);
+                        server_error(stream, &response, self.keep_running.clone());
                         return;
                     }
                 };
@@ -161,7 +161,7 @@ impl Handler {
                     let mut queue = queue.lock().unwrap();
                     if queue.len() >= QUEUE_MAX_SIZE {
                         let response = &SERVICE_UNAVAILABLE;
-                        server_error(job.tcp_stream, &response);
+                        server_error(job.tcp_stream, &response, self.keep_running.clone());
                         return;
                     }
                     queue.push_back(job);
@@ -179,8 +179,8 @@ impl Handler {
     }
 }
 
-fn server_error(mut stream: TcpStream, response: &Response) {
-    response.send(&mut stream);
+fn server_error(mut stream: TcpStream, response: &Response, keep_alive: Arc<AtomicBool>) {
+    response.send(&mut stream, keep_alive);
 
     // Shutdown the stream (depending on the web browser used to view the page, this might cause some issues).
     match stream.shutdown(Shutdown::Both) {

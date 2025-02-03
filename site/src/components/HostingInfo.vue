@@ -68,7 +68,7 @@ const { t } = useI18n({
       </tbody>
     </table>
     <h3>{{ t('can_even_play_videos') }}</h3>
-    <video controls>
+    <video controls preload="none">
       <source src="/video.webm" type="video/webm" />
     </video>
   </div>
@@ -77,6 +77,9 @@ const { t } = useI18n({
 <style scoped>
 video {
   max-width: 90%;
+  width: 400px;
+  height: 300px;
+  background-color: #cdd087;
 }
 
 h3 {

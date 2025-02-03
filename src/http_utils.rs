@@ -1,6 +1,6 @@
 use std::{
     io::{self, Read, Write},
-    net::TcpStream,
+    net::TcpStream, sync::{atomic::AtomicBool, Arc},
 };
 
 fn safe_send(stream: &mut TcpStream, data: &[u8]) -> Result<(), ()> {
@@ -51,12 +51,22 @@ impl ResponseBody<'_> {
     }
 
     pub fn chunks<'a>(&self, chunk_size: usize) -> std::slice::Chunks<'_, u8> {
-        match self {
-            ResponseBody::Lifetime(data) => data.chunks(chunk_size),
-            ResponseBody::Owned(data) => data.chunks(chunk_size),
-            ResponseBody::Slice(slice) => slice.data[slice.start..(slice.end.min(slice.data.len() - 1))].chunks(chunk_size),
-            ResponseBody::Empty => EMPTY_BODY.chunks(chunk_size),
-        }
+        let data = match self {
+            ResponseBody::Lifetime(data) => {
+                &data[..]
+            },
+            ResponseBody::Owned(data) => {
+                &data[..]
+            },
+            ResponseBody::Slice(slice) => {
+                &slice.data[slice.start..slice.end.min(slice.data.len())]
+            }
+            ResponseBody::Empty => {
+                &EMPTY_BODY[..]
+            },
+        };
+
+        data.chunks(chunk_size)
     }
 }
 
@@ -82,7 +92,7 @@ impl<'a> Response<'a> {
         };
     }
 
-    pub fn send(&self, stream: &mut TcpStream) {
+    pub fn send(&self, stream: &mut TcpStream, keep_alive: Arc<AtomicBool>) {
         {
             let mut send_body = String::with_capacity(256);
             send_body.push_str(&format!(
@@ -112,6 +122,10 @@ impl<'a> Response<'a> {
         }
 
         for chunk in self.body.chunks(2000) {
+            if !keep_alive.load(std::sync::atomic::Ordering::Relaxed) {
+                return;
+            }
+
             if safe_send(stream, chunk).is_err() {
                 return;
             }
