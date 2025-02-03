@@ -269,7 +269,7 @@ impl ServeRequest {
         }
         let (body, encoding) = body;
 
-        if let Some(range) = request.get_header("Range") {
+        response.body = if let Some(range) = request.get_header("Range") {
             let range = range.replace("bytes=", "");
             let (start, end) = if range.ends_with('-') {
                 let start = range.trim_end_matches('-').parse::<usize>().unwrap_or(0);
@@ -288,14 +288,14 @@ impl ServeRequest {
 
             response.status = 206;
             response.headers.push(format!("Content-Range: bytes {}-{}/{}", start, end - 1, body.len()));
-            response.body = ResponseBody::Slice(SliceBody{
+            ResponseBody::Slice(SliceBody{
                 data: body,
                 start,
                 end,
-            });
+            })
         } else {
-            response.body = ResponseBody::Lifetime(body);
-        }
+            ResponseBody::Lifetime(body)
+        };
         if !encoding.is_empty() {
             response
                 .headers

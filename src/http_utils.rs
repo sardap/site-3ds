@@ -54,7 +54,7 @@ impl ResponseBody<'_> {
         match self {
             ResponseBody::Lifetime(data) => data.chunks(chunk_size),
             ResponseBody::Owned(data) => data.chunks(chunk_size),
-            ResponseBody::Slice(slice) => slice.data[slice.start..slice.end].chunks(chunk_size),
+            ResponseBody::Slice(slice) => slice.data[slice.start..(slice.end.min(slice.data.len() - 1))].chunks(chunk_size),
             ResponseBody::Empty => EMPTY_BODY.chunks(chunk_size),
         }
     }
